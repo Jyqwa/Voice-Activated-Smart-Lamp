@@ -1,15 +1,35 @@
 #include "DFRobot_DF2301Q.h"
 
-#define Led 8
+#define Led 13
+#define greenLed 12
+#define redLed 11
+#define blueLed 10
+#define brightnessPin 9
+#define sensor A2
+
+unsigned long startTime = 0;      // Stores the time when the pin turned ON
+const unsigned long duration = 60000; // How long to stay ON (2 seconds)
+bool pinIsActive = false;
+int currentBrightness = 255;
+
 
 //I2C communication
 DFRobot_DF2301Q_I2C asr;
 
+
+
 void setup() {
   Serial.begin(115200);
 
-  pinMode(Led, OUTPUT);    //Init LED pin to output mode
-  digitalWrite(Led, LOW);  //Set LED pin to low 
+  pinMode(Led, OUTPUT);
+  pinMode(greenLed, OUTPUT);
+  pinMode(redLed, OUTPUT);
+  pinMode(blueLed, OUTPUT);
+  pinMode(brightnessPin, OUTPUT);
+  pinMode(sensor, INPUT);
+  setColor(0,0,0);
+
+
 
   // Init the sensor
   while (!(asr.begin())) {
@@ -55,6 +75,21 @@ void setup() {
 }
 
 void loop() {
+  
+  bool value = digitalRead(sensor);
+  if(value == 1){
+    digitalWrite(brightnessPin, HIGH);
+    startTime = millis();
+    pinIsActive = true;
+  }
+  else if(value == 0 && (millis() - startTime >= duration)){
+    digitalWrite(brightnessPin, LOW);
+    pinIsActive = false;
+  }
+  
+  
+  
+
   /**
      @brief Get the ID corresponding to the command word 
      @return Return the obtained command word ID, returning 0 means no valid ID is obtained
@@ -62,23 +97,73 @@ void loop() {
   uint8_t CMDID = asr.getCMDID();
   switch (CMDID) {
     case 103:                                                  //If the command is “Turn on the light”
-      digitalWrite(Led, HIGH);                                 //Turn on the LED
+      setColor(0,0,0);
+      
+                                     //Turn on the LED
       Serial.println("received'Turn on the light',command flag'103'");  //Serial transmits "received"Turn on the light",command flag"103
       break;
 
     case 104:                                                  //If the command is “Turn off the light”
-      digitalWrite(Led, LOW);                                  //Turn off the LED
+      setColor(255,255,255);                               //Turn off the LED
       Serial.println("received'Turn off the light',command flag'104'");  //The serial transmits "received"Turn off the light",command flag"104""
       break;
 
                                                                //the basic structure will be the case number found on te wiki, then the commands for the LED
+    case 105:
+      currentBrightness = currentBrightness + 100;
+      analogWrite(brightnessPin, currentBrightness);
+    case 106:
+      currentBrightness = currentBrightness - 100;
+      analogWrite(brightnessPin, currentBrightness);
+    case 107:
+    currentBrightness = 255;
+      digitalWrite(brightnessPin, 255);
+    case 108:
+      currentBrightness = 64;
+      analogWrite(brightnessPin, 10);
     case 116:                                                  //set to red
-      setColor(255,0,0);                                       //set the color to red, will need to set up the color pins
+      setColor(0,255,255);                                       //set the color to red, will need to set up the color pins
+      break;
+    case 117:
+      setColor(0, 165, 255);
+      break;
+    case 118:
+      setColor(0,0,255);
+      break;
+    case 119:
+      setColor(255,0,255);
+      break;
+    case 120:
+      setColor(255,0,0);
+      break;
+    case 121:
+      setColor(255, 255, 0);
+      break;
+    case 122:
+      setColor(0, 255, 0);
+      break;
+    case 123:
+      setColor(0,0,0);
+      break;
+    
     default:
       if (CMDID != 0) {
         Serial.print("CMDID = ");  //Printing command ID
         Serial.println(CMDID);
       }
   }
-  delay(300);
+  
+}
+
+void setColor(int red, int green, int blue) {
+  #ifdef COMMON_ANODE
+    // Invert the values if using a Common Anode LED
+    red = 255 - red;
+    green = 255 - green;
+    blue = 255 - blue;
+  #endif
+
+  analogWrite(redLed, red);
+  analogWrite(greenLed, green);
+  analogWrite(blueLed, blue);
 }
